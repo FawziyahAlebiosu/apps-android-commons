@@ -1,17 +1,24 @@
 package fr.free.nrw.commons.media;
 
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
+import static fr.free.nrw.commons.category.CategoryClientKt.CATEGORY_PREFIX;
+
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.drawable.Animatable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -20,46 +27,43 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.facebook.drawee.backends.pipeline.Fresco;
-import com.facebook.drawee.interfaces.DraweeController;
-import com.facebook.drawee.view.SimpleDraweeView;
-import com.facebook.imagepipeline.request.ImageRequest;
-
-import org.apache.commons.lang3.StringUtils;
-import org.wikipedia.util.DateUtil;
-import org.wikipedia.util.StringUtil;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Locale;
-
-import javax.inject.Inject;
-
+import androidx.annotation.Nullable;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
+import com.facebook.drawee.backends.pipeline.Fresco;
+import com.facebook.drawee.controller.BaseControllerListener;
+import com.facebook.drawee.controller.ControllerListener;
+import com.facebook.drawee.interfaces.DraweeController;
+import com.facebook.drawee.view.SimpleDraweeView;
+import com.facebook.imagepipeline.image.ImageInfo;
+import com.facebook.imagepipeline.request.ImageRequest;
 import fr.free.nrw.commons.Media;
 import fr.free.nrw.commons.MediaDataExtractor;
 import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.Utils;
 import fr.free.nrw.commons.auth.AccountUtil;
+import fr.free.nrw.commons.category.CategoryClient;
 import fr.free.nrw.commons.category.CategoryDetailsActivity;
 import fr.free.nrw.commons.contributions.ContributionsFragment;
 import fr.free.nrw.commons.delete.DeleteHelper;
 import fr.free.nrw.commons.delete.ReasonBuilder;
+import fr.free.nrw.commons.explore.depictions.WikidataItemDetailsActivity;
 import fr.free.nrw.commons.di.CommonsDaggerSupportFragment;
-import fr.free.nrw.commons.ui.widget.CompatTextView;
 import fr.free.nrw.commons.ui.widget.HtmlTextView;
 import fr.free.nrw.commons.utils.ViewUtilWrapper;
 import io.reactivex.Single;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import javax.inject.Inject;
+import org.apache.commons.lang3.StringUtils;
+import org.wikipedia.util.DateUtil;
 import timber.log.Timber;
-
-import static android.view.View.GONE;
-import static android.view.View.VISIBLE;
 
 public class MediaDetailFragment extends CommonsDaggerSupportFragment {
 
@@ -67,7 +71,6 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
     private boolean isCategoryImage;
     private MediaDetailPagerFragment.MediaDetailProvider detailProvider;
     private int index;
-    private Locale locale;
     private boolean isDeleted = false;
 
 
@@ -97,12 +100,20 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
 
     private int initialListTop = 0;
 
-    @BindView(R.id.mediaDetailImage)
+    @BindView(R.id.mediaDetailImageView)
     SimpleDraweeView image;
-    @BindView(R.id.mediaDetailSpacer)
-    MediaDetailSpacer spacer;
+    @BindView(R.id.mediaDetailImageViewLandscape)
+    SimpleDraweeView imageLandscape;
+    @BindView(R.id.mediaDetailImageViewSpacer)
+    LinearLayout imageSpacer;
     @BindView(R.id.mediaDetailTitle)
     TextView title;
+    @BindView(R.id.caption_layout)
+    LinearLayout captionLayout;
+    @BindView(R.id.depicts_layout)
+    LinearLayout depictsLayout;
+    @BindView(R.id.media_detail_caption)
+    TextView mediaCaption;
     @BindView(R.id.mediaDetailDesc)
     HtmlTextView desc;
     @BindView(R.id.mediaDetailAuthor)
@@ -121,6 +132,8 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
     LinearLayout nominatedForDeletion;
     @BindView(R.id.mediaDetailCategoryContainer)
     LinearLayout categoryContainer;
+    @BindView(R.id.media_detail_depiction_container)
+    LinearLayout depictionContainer;
     @BindView(R.id.authorLinearLayout)
     LinearLayout authorLayout;
     @BindView(R.id.nominateDeletion)
@@ -128,11 +141,16 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
     @BindView(R.id.mediaDetailScrollView)
     ScrollView scrollView;
 
-    private ArrayList<String> categoryNames;
-    private boolean categoriesLoaded = false;
-    private boolean categoriesPresent = false;
+    /**
+     * Depicts is a feature part of Structured data. Multiple Depictions can be added for an image just like categories.
+     * However unlike categories depictions is multi-lingual
+     * Ex: key: en value: monument
+     */
+    private ImageInfo imageInfoCache;
+    private int oldWidthOfImageView;
+    private int newWidthOfImageView;
+    private boolean heightVerifyingBoolean = true; // helps in maintaining aspect ratio
     private ViewTreeObserver.OnGlobalLayoutListener layoutListener; // for layout stuff, only used once!
-    private ViewTreeObserver.OnScrollChangedListener scrollListener;
 
     //Had to make this class variable, to implement various onClicks, which access the media, also I fell why make separate variables when one can serve the purpose
     private Media media;
@@ -180,9 +198,6 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
         reasonList.add(getString(R.string.deletion_reason_no_longer_want_public));
         reasonList.add(getString(R.string.deletion_reason_bad_for_my_privacy));
 
-        categoryNames = new ArrayList<>();
-        categoryNames.add(getString(R.string.detail_panel_cats_loading));
-
         final View view = inflater.inflate(R.layout.fragment_media_detail, container, false);
 
         ButterKnife.bind(this,view);
@@ -194,37 +209,17 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
             authorLayout.setVisibility(GONE);
         }
 
-        // Progressively darken the image in the background when we scroll detail pane up
-        scrollListener = this::updateTheDarkness;
-        view.getViewTreeObserver().addOnScrollChangedListener(scrollListener);
-
-        // Layout layoutListener to size the spacer item relative to the available space.
-        // There may be a .... better way to do this.
-        layoutListener = new ViewTreeObserver.OnGlobalLayoutListener() {
-            private int currentHeight = -1;
-
-            @Override
-            public void onGlobalLayout() {
-                int viewHeight = view.getHeight();
-                //int textHeight = title.getLineHeight();
-                int paddingDp = 112;
-                float paddingPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, paddingDp, getResources().getDisplayMetrics());
-                int newHeight = viewHeight - Math.round(paddingPx);
-
-                if (newHeight != currentHeight) {
-                    currentHeight = newHeight;
-                    ViewGroup.LayoutParams params = spacer.getLayoutParams();
-                    params.height = newHeight;
-                    spacer.setLayoutParams(params);
-
-                    scrollView.scrollTo(0, initialListTop);
-                }
-            }
-        };
-        view.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
-        locale = getResources().getConfiguration().locale;
-
         return view;
+    }
+
+    @OnClick(R.id.mediaDetailImageViewSpacer)
+    public void launchZoomActivity(View view) {
+        if (media.getImageUrl() != null) {
+            Context ctx = view.getContext();
+            ctx.startActivity(
+                new Intent(ctx, ZoomableActivity.class).setData(Uri.parse(media.getImageUrl()))
+            );
+        }
     }
 
     @Override
@@ -238,22 +233,135 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
                     .setVisibility(View.GONE);
         }
         media = detailProvider.getMediaAtPosition(index);
-        displayMediaDetails();
+        scrollView.getViewTreeObserver().addOnGlobalLayoutListener(
+            new OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    scrollView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        imageLandscape.setVisibility(VISIBLE);
+                    }
+                    oldWidthOfImageView = scrollView.getWidth();
+                    displayMediaDetails();
+                }
+            }
+        );
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        scrollView.getViewTreeObserver().addOnGlobalLayoutListener(
+            new OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    if (scrollView.getWidth() != oldWidthOfImageView) {
+                        if (newWidthOfImageView == 0) {
+                            newWidthOfImageView = scrollView.getWidth();
+                            updateAspectRatio(newWidthOfImageView);
+                        }
+                        scrollView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                    }
+                }
+            }
+        );
+        // check orientation
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            imageLandscape.setVisibility(VISIBLE);
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            imageLandscape.setVisibility(GONE);
+        }
+        // ensuring correct aspect ratio for landscape mode
+        if (heightVerifyingBoolean) {
+            updateAspectRatio(newWidthOfImageView);
+            heightVerifyingBoolean = false;
+        } else {
+            updateAspectRatio(oldWidthOfImageView);
+            heightVerifyingBoolean = true;
+        }
     }
 
     private void displayMediaDetails() {
-        //Always load image from Internet to allow viewing the desc, license, and cats
-        setupImageView();
-        title.setText(media.getDisplayTitle());
-        desc.setHtmlText(media.getDescription());
-        license.setText(media.getLicense());
-
-        Disposable disposable = mediaDataExtractor.fetchMediaDetails(media.getFilename())
+        setTextFields(media);
+        compositeDisposable.addAll(
+            mediaDataExtractor.fetchDepictionIdsAndLabels(media)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::setTextFields);
-        compositeDisposable.add(disposable);
+                .subscribe(this::onDepictionsLoaded, Timber::e),
+            mediaDataExtractor.checkDeletionRequestExists(media)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onDeletionPageExists, Timber::e),
+            mediaDataExtractor.fetchDiscussion(media)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onDiscussionLoaded, Timber::e),
+            mediaDataExtractor.refresh(media)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onMediaRefreshed, Timber::e)
+        );
     }
+
+    private void onMediaRefreshed(Media media) {
+        setTextFields(media);
+        compositeDisposable.addAll(
+            mediaDataExtractor.fetchDepictionIdsAndLabels(media)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::onDepictionsLoaded, Timber::e)
+        );
+    }
+
+    private void onDiscussionLoaded(String discussion) {
+        mediaDiscussion.setText(prettyDiscussion(discussion.trim()));
+    }
+
+    private void onDeletionPageExists(Boolean deletionPageExists) {
+        if (deletionPageExists){
+            delete.setVisibility(GONE);
+            nominatedForDeletion.setVisibility(VISIBLE);
+        } else if (!isCategoryImage) {
+            delete.setVisibility(VISIBLE);
+            nominatedForDeletion.setVisibility(GONE);
+        }
+    }
+
+    private void onDepictionsLoaded(List<IdAndCaptions> idAndCaptions){
+      depictsLayout.setVisibility(idAndCaptions.isEmpty() ? GONE : VISIBLE);
+      buildDepictionList(idAndCaptions);
+    }
+    /**
+     * The imageSpacer is Basically a transparent overlay for the SimpleDraweeView
+     * which holds the image to be displayed( moreover this image is out of
+     * the scroll view )
+     * @param scrollWidth the current width of the scrollView
+     */
+    private void updateAspectRatio(int scrollWidth) {
+        if (imageInfoCache != null) {
+            int finalHeight = (scrollWidth*imageInfoCache.getHeight()) / imageInfoCache.getWidth();
+            ViewGroup.LayoutParams params = image.getLayoutParams();
+            ViewGroup.LayoutParams spacerParams = imageSpacer.getLayoutParams();
+            params.height = finalHeight;
+            spacerParams.height = finalHeight;
+            image.setLayoutParams(params);
+            imageSpacer.setLayoutParams(spacerParams);
+            imageLandscape.setLayoutParams(params);
+        }
+    }
+
+    private final ControllerListener aspectRatioListener = new BaseControllerListener<ImageInfo>() {
+        @Override
+        public void onIntermediateImageSet(String id, @Nullable ImageInfo imageInfo) {
+            imageInfoCache = imageInfo;
+            updateAspectRatio(scrollView.getWidth());
+        }
+        @Override
+        public void onFinalImageSet(String id, @Nullable ImageInfo imageInfo, @Nullable Animatable animatable) {
+            imageInfoCache = imageInfo;
+            updateAspectRatio(scrollView.getWidth());
+        }
+    };
 
     /**
      * Uses two image sources.
@@ -264,9 +372,17 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
         DraweeController controller = Fresco.newDraweeControllerBuilder()
                 .setLowResImageRequest(ImageRequest.fromUri(media.getThumbUrl()))
                 .setImageRequest(ImageRequest.fromUri(media.getImageUrl()))
+                .setControllerListener(aspectRatioListener)
                 .setOldController(image.getController())
                 .build();
+        DraweeController controllerLandscape = Fresco.newDraweeControllerBuilder()
+            .setLowResImageRequest(ImageRequest.fromUri(media.getThumbUrl()))
+            .setImageRequest(ImageRequest.fromUri(media.getImageUrl()))
+            .setControllerListener(aspectRatioListener)
+            .setOldController(imageLandscape.getController())
+            .build();
         image.setController(controller);
+        imageLandscape.setController(controllerLandscape);
     }
 
     @Override
@@ -275,42 +391,54 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
             getView().getViewTreeObserver().removeGlobalOnLayoutListener(layoutListener); // old Android was on crack. CRACK IS WHACK
             layoutListener = null;
         }
-        if (scrollListener != null && getView() != null) {
-            getView().getViewTreeObserver().removeOnScrollChangedListener(scrollListener);
-            scrollListener = null;
-        }
 
         compositeDisposable.clear();
         super.onDestroyView();
     }
 
     private void setTextFields(Media media) {
-        this.media = media;
         setupImageView();
+        title.setText(media.getDisplayTitle());
         desc.setHtmlText(prettyDescription(media));
         license.setText(prettyLicense(media));
         coordinates.setText(prettyCoordinates(media));
         uploadedDate.setText(prettyUploadedDate(media));
-        mediaDiscussion.setText(prettyDiscussion(media));
-
-        categoryNames.clear();
-        categoryNames.addAll(media.getCategories());
-
-        categoriesLoaded = true;
-        categoriesPresent = (categoryNames.size() > 0);
-        if (!categoriesPresent) {
-            // Stick in a filler element.
-            categoryNames.add(getString(R.string.detail_panel_cats_none));
+        if (prettyCaption(media).equals(getContext().getString(R.string.detail_caption_empty))) {
+            captionLayout.setVisibility(GONE);
+        } else {
+            mediaCaption.setText(prettyCaption(media));
         }
-        rebuildCatList();
+
+        final List<String> categories = media.getCategories();
+        if (categories.isEmpty()) {
+            // Stick in a filler element.
+            categories.add(getString(R.string.detail_panel_cats_none));
+        }
+
+        rebuildCatList(categories);
+
+
 
         if (media.getCreator() == null || media.getCreator().equals("")) {
             authorLayout.setVisibility(GONE);
         } else {
             author.setText(media.getCreator());
         }
+    }
 
-        checkDeletion(media);
+    /**
+     * Populates media details fragment with depiction list
+     * @param idAndCaptions
+     */
+    private void buildDepictionList(List<IdAndCaptions> idAndCaptions) {
+        depictionContainer.removeAllViews();
+        for (IdAndCaptions idAndCaption : idAndCaptions) {
+                depictionContainer.addView(buildDepictLabel(
+                    idAndCaption.getCaptions().values().iterator().next(),
+                    idAndCaption.getId(),
+                    depictionContainer
+                ));
+        }
     }
 
     @OnClick(R.id.mediaDetailLicense)
@@ -332,7 +460,7 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
 
     @OnClick(R.id.copyWikicode)
     public void onCopyWikicodeClicked(){
-        String data = "[[" + media.getFilename() + "|thumb|" + media.getDescription() + "]]";
+        String data = "[[" + media.getFilename() + "|thumb|" + media.getFallbackDescription() + "]]";
         Utils.copy("wikiCode",data,getContext());
         Timber.d("Generated wikidata copy code: %s", data);
 
@@ -341,68 +469,74 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
 
     @OnClick(R.id.nominateDeletion)
     public void onDeleteButtonClicked(){
-        if(AccountUtil.getUserName(getContext()).equals(media.getCreator())){
-        final ArrayAdapter<String> languageAdapter = new ArrayAdapter<>(getActivity(),
-                R.layout.simple_spinner_dropdown_list, reasonList);
-        final Spinner spinner = new Spinner(getActivity());
-        spinner.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        spinner.setAdapter(languageAdapter);
-        spinner.setGravity(17);
+            if (AccountUtil.getUserName(getContext()) != null && AccountUtil.getUserName(getContext()).equals(media.getCreator())) {
+                final ArrayAdapter<String> languageAdapter = new ArrayAdapter<>(getActivity(),
+                    R.layout.simple_spinner_dropdown_list, reasonList);
+                final Spinner spinner = new Spinner(getActivity());
+                spinner.setLayoutParams(
+                    new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+                spinner.setAdapter(languageAdapter);
+                spinner.setGravity(17);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setView(spinner);
-        builder.setTitle(R.string.nominate_delete)
-                .setPositiveButton(R.string.about_translate_proceed, (dialog, which) -> onDeleteClicked(spinner));
-        builder.setNegativeButton(R.string.about_translate_cancel, (dialog, which) -> dialog.dismiss());
-        AlertDialog dialog = builder.create();
-        dialog.show();
-        if(isDeleted) {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-        }
-        }
-        //Reviewer correct me if i have misunderstood something over here
-        //But how does this  if (delete.getVisibility() == View.VISIBLE) {
-        //            enableDeleteButton(true);   makes sense ?
-        else{
-        AlertDialog.Builder alert = new AlertDialog.Builder(getActivity());
-        alert.setMessage(getString(R.string.dialog_box_text_nomination,media.getDisplayTitle()));
-        final EditText input = new EditText(getActivity());
-        alert.setView(input);
-        input.requestFocus();
-        alert.setPositiveButton(R.string.ok, (dialog1, whichButton) -> {
-            String reason = input.getText().toString();
-            onDeleteClickeddialogtext(reason);
-        });
-        alert.setNegativeButton(R.string.cancel, (dialog12, whichButton) -> {
-        });
-        AlertDialog d = alert.create();
-        input.addTextChangedListener(new TextWatcher() {
-            private void handleText() {
-                final Button okButton = d.getButton(AlertDialog.BUTTON_POSITIVE);
-                if (input.getText().length() == 0) {
-                    okButton.setEnabled(false);
-                } else {
-                    okButton.setEnabled(true);
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setView(spinner);
+                builder.setTitle(R.string.nominate_delete)
+                    .setPositiveButton(R.string.about_translate_proceed,
+                        (dialog, which) -> onDeleteClicked(spinner));
+                builder.setNegativeButton(R.string.about_translate_cancel,
+                    (dialog, which) -> dialog.dismiss());
+                AlertDialog dialog = builder.create();
+                dialog.show();
+                if (isDeleted) {
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
                 }
             }
+            //Reviewer correct me if i have misunderstood something over here
+            //But how does this  if (delete.getVisibility() == View.VISIBLE) {
+            //            enableDeleteButton(true);   makes sense ?
+            else {
+                AlertDialog.Builder alert = new AlertDialog.Builder(getActivity());
+                alert.setMessage(
+                    getString(R.string.dialog_box_text_nomination, media.getDisplayTitle()));
+                final EditText input = new EditText(getActivity());
+                alert.setView(input);
+                input.requestFocus();
+                alert.setPositiveButton(R.string.ok, (dialog1, whichButton) -> {
+                    String reason = input.getText().toString();
+                    onDeleteClickeddialogtext(reason);
+                });
+                alert.setNegativeButton(R.string.cancel, (dialog12, whichButton) -> {
+                });
+                AlertDialog d = alert.create();
+                input.addTextChangedListener(new TextWatcher() {
+                    private void handleText() {
+                        final Button okButton = d.getButton(AlertDialog.BUTTON_POSITIVE);
+                        if (input.getText().length() == 0) {
+                            okButton.setEnabled(false);
+                        } else {
+                            okButton.setEnabled(true);
+                        }
+                    }
 
-            @Override
-            public void afterTextChanged(Editable arg0) {
-                handleText();
-            }
+                    @Override
+                    public void afterTextChanged(Editable arg0) {
+                        handleText();
+                    }
 
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
+                    @Override
+                    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                    }
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    @Override
+                    public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    }
+                });
+                d.show();
+                d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
             }
-        });
-        d.show();
-        d.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
-    }
         }
+
 
     @SuppressLint("CheckResult")
     private void onDeleteClicked(Spinner spinner) {
@@ -453,35 +587,49 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
         }
     }
 
-    private void rebuildCatList() {
+    private void rebuildCatList(List<String> categories) {
         categoryContainer.removeAllViews();
-        // @fixme add the category items
-
-        //As per issue #1826(see https://github.com/commons-app/apps-android-commons/issues/1826), some categories come suffixed with strings prefixed with |. As per the discussion
-        //that was meant for alphabetical sorting of the categories and can be safely removed.
-        for (int i = 0; i < categoryNames.size(); i++) {
-            String categoryName = categoryNames.get(i);
-            //Removed everything after '|'
-            int indexOfPipe = categoryName.indexOf('|');
-            if (indexOfPipe != -1) {
-                categoryName = categoryName.substring(0, indexOfPipe);
-                //Set the updated category to the list as well
-                categoryNames.set(i, categoryName);
-            }
-            View catLabel = buildCatLabel(categoryName, categoryContainer);
-            categoryContainer.addView(catLabel);
+        for (String category : categories) {
+            categoryContainer.addView(buildCatLabel(sanitise(category), categoryContainer));
         }
+    }
+
+    //As per issue #1826(see https://github.com/commons-app/apps-android-commons/issues/1826), some categories come suffixed with strings prefixed with |. As per the discussion
+    //that was meant for alphabetical sorting of the categories and can be safely removed.
+    private String sanitise(String category) {
+        int indexOfPipe = category.indexOf('|');
+        if (indexOfPipe != -1) {
+            //Removed everything after '|'
+            return category.substring(0, indexOfPipe);
+        }
+        return category;
+    }
+
+    /**
+     * Add view to depictions obtained also tapping on depictions should open the url
+     */
+    private View buildDepictLabel(String depictionName, String entityId, LinearLayout depictionContainer) {
+        final View item = LayoutInflater.from(getContext()).inflate(R.layout.detail_category_item, depictionContainer,false);
+        final TextView textView = item.findViewById(R.id.mediaDetailCategoryItemText);
+        textView.setText(depictionName);
+        item.setOnClickListener(view -> {
+            Intent intent = new Intent(getContext(), WikidataItemDetailsActivity.class);
+            intent.putExtra("wikidataItemName", depictionName);
+            intent.putExtra("entityId", entityId);
+            getContext().startActivity(intent);
+        });
+        return item;
     }
 
     private View buildCatLabel(final String catName, ViewGroup categoryContainer) {
         final View item = LayoutInflater.from(getContext()).inflate(R.layout.detail_category_item, categoryContainer, false);
-        final CompatTextView textView = item.findViewById(R.id.mediaDetailCategoryItemText);
+        final TextView textView = item.findViewById(R.id.mediaDetailCategoryItemText);
 
         textView.setText(catName);
-        if (categoriesLoaded && categoriesPresent) {
+        if(!getString(R.string.detail_panel_cats_none).equals(catName)) {
             textView.setOnClickListener(view -> {
                 // Open Category Details page
-                String selectedCategoryTitle = "Category:" + catName;
+                String selectedCategoryTitle = CATEGORY_PREFIX + catName;
                 Intent intent = new Intent(getContext(), CategoryDetailsActivity.class);
                 intent.putExtra("categoryName", selectedCategoryTitle);
                 getContext().startActivity(intent);
@@ -490,34 +638,43 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
         return item;
     }
 
-    private void updateTheDarkness() {
-        // You must face the darkness alone
-        int scrollY = scrollView.getScrollY();
-        int scrollMax = getView().getHeight();
-        float scrollPercentage = (float) scrollY / (float) scrollMax;
-        final float transparencyMax = 0.75f;
-        if (scrollPercentage > transparencyMax) {
-            scrollPercentage = transparencyMax;
+    /**
+    * Returns captions for media details
+     *
+     * @param media object of class media
+     * @return caption as string
+     */
+    private String prettyCaption(Media media) {
+        for (String caption : media.getCaptions().values()) {
+            if (caption.equals("")) {
+                return getString(R.string.detail_caption_empty);
+            } else {
+                return caption;
+            }
         }
-        image.setAlpha(1.0f - scrollPercentage);
+        return getString(R.string.detail_caption_empty);
     }
 
     private String prettyDescription(Media media) {
-        // @todo use UI language when multilingual descs are available
-        String desc = media.getDescription(locale.getLanguage()).trim();
-        if (desc.equals("")) {
-            return getString(R.string.detail_description_empty);
-        } else {
-            return desc;
-        }
+        final String description = chooseDescription(media);
+        return description.isEmpty() ? getString(R.string.detail_description_empty)
+            : description;
     }
-    private String prettyDiscussion(Media media) {
-        String disc = media.getDiscussion().trim();
-        if (disc.equals("")) {
-            return getString(R.string.detail_discussion_empty);
-        } else {
-            return disc;
+
+    private String chooseDescription(Media media) {
+        final Map<String, String> descriptions = media.getDescriptions();
+        final String multilingualDesc = descriptions.get(Locale.getDefault().getLanguage());
+        if (multilingualDesc != null) {
+            return multilingualDesc;
         }
+        for (String description : descriptions.values()) {
+            return description;
+        }
+        return media.getFallbackDescription();
+    }
+
+    private String prettyDiscussion(String discussion) {
+        return discussion.isEmpty() ? getString(R.string.detail_discussion_empty) : discussion;
     }
 
     private String prettyLicense(Media media) {
@@ -547,16 +704,6 @@ public class MediaDetailFragment extends CommonsDaggerSupportFragment {
             return getString(R.string.media_detail_coordinates_empty);
         }
         return media.getCoordinates().getPrettyCoordinateString();
-    }
-
-    private void checkDeletion(Media media){
-        if (media.getRequestedDeletion()){
-            delete.setVisibility(GONE);
-            nominatedForDeletion.setVisibility(VISIBLE);
-        } else if (!isCategoryImage) {
-            delete.setVisibility(VISIBLE);
-            nominatedForDeletion.setVisibility(GONE);
-        }
     }
 
 }

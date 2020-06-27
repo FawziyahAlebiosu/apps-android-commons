@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.nearby.presenter.NearbyParentFragmentPresenter;
+import java.util.Collections;
 
 public class NearbyFilterSearchRecyclerViewAdapter
         extends RecyclerView.Adapter<NearbyFilterSearchRecyclerViewAdapter.RecyclerViewHolder>
@@ -70,7 +71,7 @@ public class NearbyFilterSearchRecyclerViewAdapter
     @NonNull
     @Override
     public RecyclerViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = inflater.inflate(callback.isDarkTheme()?R.layout.nearby_search_list_item_dark:R.layout.nearby_search_list_item, parent, false);
+        View itemView = inflater.inflate(callback.isDarkTheme() ? R.layout.nearby_search_list_item_dark : R.layout.nearby_search_list_item, parent, false);
         return new RecyclerViewHolder(itemView);
     }
 
@@ -79,17 +80,20 @@ public class NearbyFilterSearchRecyclerViewAdapter
         Label label = displayedLabels.get(position);
         holder.placeTypeIcon.setImageResource(label.getIcon());
         holder.placeTypeLabel.setText(label.toString());
+        holder.placeTypeLayout.setSelected(label.isSelected());
 
-        holder.placeTypeLayout.setBackgroundColor(label.isSelected() ? ContextCompat.getColor(context, R.color.divider_grey) : callback.isDarkTheme()?Color.BLACK:Color.WHITE);
         holder.placeTypeLayout.setOnClickListener(view -> {
             callback.setCheckboxUnknown();
+
             if (label.isSelected()) {
                 selectedLabels.remove(label);
             } else {
                 selectedLabels.add(label);
             }
+
             label.setSelected(!label.isSelected());
-            holder.placeTypeLayout.setBackgroundColor(label.isSelected() ? ContextCompat.getColor(context, R.color.divider_grey) : Color.WHITE);
+            holder.placeTypeLayout.setSelected(label.isSelected());
+
             callback.filterByMarkerType(selectedLabels, 0, false, false);
         });
     }
@@ -165,7 +169,7 @@ public class NearbyFilterSearchRecyclerViewAdapter
         notifyDataSetChanged();
     }
 
-    public interface  Callback{
+    public interface  Callback {
 
         void setCheckboxUnknown();
 

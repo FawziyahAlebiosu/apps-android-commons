@@ -33,7 +33,7 @@ class u {
     var imageProcessingService: ImageProcessingService? = null
 
     @Mock
-    internal lateinit var uploadItem: UploadModel.UploadItem
+    internal lateinit var uploadItem: UploadItem
 
     @Before
     @Throws(Exception::class)
@@ -41,18 +41,18 @@ class u {
         MockitoAnnotations.initMocks(this)
         val mediaUri = mock(Uri::class.java)
         val mockPlace = mock(Place::class.java)
-        val mockTitle = mock(Title::class.java)
+        val mockTitle = mock(List::class.java)
 
         `when`(mockPlace.wikiDataEntityId).thenReturn("Q1")
         `when`(mockPlace.getLocation()).thenReturn(mock(LatLng::class.java))
         `when`(mediaUri.path).thenReturn("filePath")
-        `when`(mockTitle.isEmpty).thenReturn(false)
-        `when`(mockTitle.isSet).thenReturn(true)
+        /*`when`(mockTitle.isEmpty).thenReturn(false)
+        `when`(mockTitle.isSet).thenReturn(true)*/
 
         `when`(uploadItem.mediaUri).thenReturn(mediaUri)
         `when`(uploadItem.imageQuality).thenReturn(ImageUtils.IMAGE_WAIT)
 
-        `when`(uploadItem.title).thenReturn(mockTitle)
+        `when`(uploadItem.uploadMediaDetails).thenReturn(mockTitle as MutableList<UploadMediaDetail>?)
 
         `when`(uploadItem.place).thenReturn(mockPlace)
         `when`(uploadItem.fileName).thenReturn("File:jpg")
@@ -88,7 +88,7 @@ class u {
     @Test
     fun validateImageForKeepImage() {
         `when`(uploadItem.imageQuality).thenReturn(ImageUtils.IMAGE_KEEP)
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.IMAGE_OK, validateImage.blockingGet())
     }
 
@@ -96,13 +96,13 @@ class u {
     fun validateImageForDuplicateImage() {
         `when`(mediaClient!!.checkFileExistsUsingSha(ArgumentMatchers.anyString()))
                 .thenReturn(Single.just(true))
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.IMAGE_DUPLICATE, validateImage.blockingGet())
     }
 
     @Test
     fun validateImageForOkImage() {
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.IMAGE_OK, validateImage.blockingGet())
     }
 
@@ -110,7 +110,7 @@ class u {
     fun validateImageForDarkImage() {
         `when`(imageUtilsWrapper?.checkIfImageIsTooDark(ArgumentMatchers.anyString()))
                 .thenReturn(Single.just(ImageUtils.IMAGE_DARK))
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.IMAGE_DARK, validateImage.blockingGet())
     }
 
@@ -118,23 +118,15 @@ class u {
     fun validateImageForWrongGeoLocation() {
         `when`(imageUtilsWrapper!!.checkImageGeolocationIsDifferent(ArgumentMatchers.anyString(), any(LatLng::class.java)))
                 .thenReturn(Single.just(ImageUtils.IMAGE_GEOLOCATION_DIFFERENT))
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.IMAGE_GEOLOCATION_DIFFERENT, validateImage.blockingGet())
-    }
-
-    @Test
-    fun validateImageForFileNameExistsWithCheckTitleOff() {
-        `when`(mediaClient?.checkPageExistsUsingTitle(ArgumentMatchers.anyString()))
-                .thenReturn(Single.just(true))
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, false)
-        assertEquals(ImageUtils.IMAGE_OK, validateImage.blockingGet())
     }
 
     @Test
     fun validateImageForFileNameExistsWithCheckTitleOn() {
         `when`(mediaClient?.checkPageExistsUsingTitle(ArgumentMatchers.anyString()))
                 .thenReturn(Single.just(true))
-        val validateImage = imageProcessingService!!.validateImage(uploadItem, true)
+        val validateImage = imageProcessingService!!.validateImage(uploadItem)
         assertEquals(ImageUtils.FILE_NAME_EXISTS, validateImage.blockingGet())
     }
 }

@@ -15,7 +15,7 @@ android:
   components:
   - tools
   - platform-tools
-  - build-tools-28.0.3
+  - build-tools-29.0.2
   - extra-google-m2repository
   - extra-android-m2repository
   - android-22
@@ -23,7 +23,7 @@ android:
   licenses:
   - android-sdk-license-.+
 script:
-- "./gradlew -Pcoverage clean check jacocoTestReport"
+- "./gradlew -Pcoverage lintBetaDebug pmd checkstyle jacocoTestBetaDebugUnitTestReport"
 - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "master" ]; then
   mkdir -p app/src/prodRelease/play/release-notes/en-US;
   fi

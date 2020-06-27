@@ -1,0 +1,5 @@
+SELECT ?item WHERE {
+    wd:${QID} wdt:P279 ?item.
+}
+LIMIT   ${LIMIT}
+OFFSET  ${OFFSET}

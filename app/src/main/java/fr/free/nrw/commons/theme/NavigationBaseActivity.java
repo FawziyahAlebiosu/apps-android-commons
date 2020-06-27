@@ -42,7 +42,7 @@ import fr.free.nrw.commons.auth.LoginActivity;
 import fr.free.nrw.commons.auth.LogoutClient;
 import fr.free.nrw.commons.bookmarks.BookmarksActivity;
 import fr.free.nrw.commons.contributions.MainActivity;
-import fr.free.nrw.commons.explore.categories.ExploreActivity;
+import fr.free.nrw.commons.explore.ExploreActivity;
 import fr.free.nrw.commons.kvstore.JsonKvStore;
 import fr.free.nrw.commons.logging.CommonsLogSender;
 import fr.free.nrw.commons.review.ReviewActivity;
@@ -90,7 +90,6 @@ public abstract class NavigationBaseActivity extends BaseActivity
         drawerLayout.addDrawerListener(toggle);
         toggle.setDrawerIndicatorEnabled(true);
         toggle.syncState();
-        setUserName();
         Menu nav_Menu = navigationView.getMenu();
         View headerLayout = navigationView.getHeaderView(0);
         ImageView userIcon = headerLayout.findViewById(R.id.user_icon);
@@ -102,7 +101,8 @@ public abstract class NavigationBaseActivity extends BaseActivity
             nav_Menu.findItem(R.id.action_logout).setVisible(false);
             nav_Menu.findItem(R.id.action_bookmarks).setVisible(true);
             nav_Menu.findItem(R.id.action_review).setVisible(false);
-        }else {
+        } else {
+            setUserName();
             userIcon.setVisibility(View.VISIBLE);
             nav_Menu.findItem(R.id.action_login).setVisible(false);
             nav_Menu.findItem(R.id.action_home).setVisible(true);

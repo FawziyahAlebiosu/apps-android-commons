@@ -8,6 +8,8 @@ import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
 
+import androidx.annotation.Nullable;
+
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.util.ArrayList;
@@ -55,7 +57,7 @@ public class GridViewAdapter extends ArrayAdapter {
             data = new ArrayList<>();
             return false;
         }
-        if (data.size() <= 0) {
+        if (data.isEmpty()) {
             return false;
         }
         String fileName = data.get(0).getFilename();
@@ -86,11 +88,21 @@ public class GridViewAdapter extends ArrayAdapter {
         SimpleDraweeView imageView = convertView.findViewById(R.id.categoryImageView);
         TextView fileName = convertView.findViewById(R.id.categoryImageTitle);
         TextView author = convertView.findViewById(R.id.categoryImageAuthor);
-        fileName.setText(item.getDisplayTitle());
+        fileName.setText(item.getMostRelevantCaption());
         setAuthorView(item, author);
         imageView.setImageURI(item.getThumbUrl());
         return convertView;
     }
+
+    /**
+     * @return the Media item at the given position
+     */
+    @Nullable
+    @Override
+    public Media getItem(int position) {
+        return data.get(position);
+    }
+
 
     /**
      * Shows author information if its present
@@ -99,10 +111,8 @@ public class GridViewAdapter extends ArrayAdapter {
      */
     private void setAuthorView(Media item, TextView author) {
         if (!TextUtils.isEmpty(item.getCreator())) {
-            String uploadedByTemplate = getContext().getString(R.string.image_uploaded_by);
-
-            String uploadedBy = String.format(Locale.getDefault(), uploadedByTemplate, item.getCreator());
-            author.setText(uploadedBy);
+            author.setVisibility(View.VISIBLE);
+            author.setText(getContext().getString(R.string.image_uploaded_by, item.getCreator()));
         } else {
             author.setVisibility(View.GONE);
         }

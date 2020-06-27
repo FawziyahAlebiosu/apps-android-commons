@@ -6,6 +6,27 @@
 * Soued031
 -->
 <resources>
+  <plurals name="uploads_pending_notification_indicator">
+    <item quantity="one">ee Fichier eroplueden</item>
+    <item quantity="other">%1$d Fichieren eroplueden</item>
+  </plurals>
+  <plurals name="contributions_subtitle" fuzzy="true">
+    <item quantity="zero">N@string/contributions_subtitle_zero</item>
+    <item quantity="one">(%1$d)</item>
+    <item quantity="other">(%1$d)</item>
+  </plurals>
+  <plurals name="starting_multiple_uploads">
+    <item quantity="one">Ugefaang 1 Fichier eropzelueden</item>
+    <item quantity="other">Ugefaang %1$d Fichieren eropzelueden</item>
+  </plurals>
+  <plurals name="multiple_uploads_title">
+    <item quantity="one">Ee Fichier eropgelueden</item>
+    <item quantity="other">%1$d Fichieren eropgelueden</item>
+  </plurals>
+  <plurals name="share_license_summary">
+    <item quantity="one">Dëst Bild gëtt ënner %1$s lizenzéiert</item>
+    <item quantity="other">Dës Biller ginn ënner %1$s lizenzéiert</item>
+  </plurals>
   <string name="title_activity_explore">Entdecken</string>
   <string name="navigation_item_explore">Entdecken</string>
   <string name="preference_category_appearance">Ausgesinn</string>
@@ -37,10 +58,6 @@
   <string name="upload_progress_notification_title_finishing">Eroplueden vu(n) %1$s ofschléissen</string>
   <string name="upload_failed_notification_title">D\'Eropluede vu(n) %1$s huet net funktionéiert</string>
   <string name="upload_failed_notification_subtitle">Dréckt fir nach eng Kéier ze probéieren</string>
-  <plurals name="uploads_pending_notification_indicator">
-    <item quantity="one">ee Fichier eroplueden</item>
-    <item quantity="other">%1$d Fichieren eroplueden</item>
-  </plurals>
   <string name="title_activity_contributions">Meng rezent eropgeluede Fichieren</string>
   <string name="contribution_state_queued">An der Queue</string>
   <string name="contribution_state_failed">Huet net funktionéiert</string>
@@ -52,7 +69,7 @@
   <string name="provider_contributions">Meng eropgeluede Fichieren</string>
   <string name="menu_share">Deelen</string>
   <string name="menu_open_in_browser">Am Browser kucken</string>
-  <string name="share_title_hint">Titel (Obligatoresch)</string>
+  <string name="share_title_hint">Erklärung (Obligatoresch)</string>
   <string name="share_description_hint">Beschreiwung</string>
   <string name="login_failed_network">Aloggen huet net funktionéiert - Feeler mam Reseau</string>
   <string name="login_failed_throttled">Ze dacks ouni Succès probéiert. Probéiert wgl. an e puer Minutten nach eng Kéier.</string>
@@ -69,19 +86,6 @@
   <string name="gps_disabled">GPS ass op Ärem Apparat ausgeschalt. Wëllt Dir en aktivéieren?</string>
   <string name="enable_gps">GPS aktivéieren</string>
   <string name="contributions_subtitle_zero">Nach keng eropgeluede Fichieren</string>
-  <plurals name="contributions_subtitle">
-    <item quantity="zero">N@string/contributions_subtitle_zero</item>
-    <item quantity="one">(%1$d)</item>
-    <item quantity="other">(%1$d)</item>
-  </plurals>
-  <plurals name="starting_multiple_uploads">
-    <item quantity="one">Ugefaang 1 Fichier eropzelueden</item>
-    <item quantity="other">Ugefaang %1$d Fichieren eropzelueden</item>
-  </plurals>
-  <plurals name="multiple_uploads_title">
-    <item quantity="one">Ee Fichier eropgelueden</item>
-    <item quantity="other">%1$d Fichieren eropgelueden</item>
-  </plurals>
   <string name="categories_not_found">D\'Kategorie %1$s gouf net fonnt</string>
   <string name="categories_skip_explanation">Setzt Kategorien derbäi fir datt Är Biller méi einfach op Wikimedia Commons ze fanne sinn.\n\nFänkt u mat Kategorien derbäizesetzen.</string>
   <string name="categories_activity_title">Kategorien</string>
@@ -102,16 +106,12 @@
   <string name="no_uploads_yet">Dir hutt nach keng Fotoen eropgelueden.</string>
   <string name="menu_retry_upload">Nach eng Kéier probéieren</string>
   <string name="menu_cancel_upload">Ofbriechen</string>
-  <plurals name="share_license_summary">
-    <item quantity="one">Dëst Bild gëtt ënner %1$s lizenzéiert</item>
-    <item quantity="other">Dës Biller ginn ënner %1$s lizenzéiert</item>
-  </plurals>
   <string name="menu_download">Eroflueden</string>
   <string name="preference_license">Standardlizenz</string>
   <string name="use_previous">Viregen Titel a Beschreiwung benotzen</string>
   <string name="allow_gps">Automatesch déi aktuell Plaz kréien</string>
   <string name="allow_gps_summary">Rifft déi aktuell Plaz of wann e Bild net georeferenzéiert ass a setzt Geotagge vun der aktueller Plaz. Opgepasst: Doduerch gëtt Är aktuell Plaz bekannt.</string>
-  <string name="preference_theme" fuzzy="true">Nuetsmodus</string>
+  <string name="preference_theme">Thema</string>
   <string name="license_name_cc_by_sa_four">Attribution-ShareAlike 4.0</string>
   <string name="license_name_cc_by_four">Attribution 4.0</string>
   <string name="license_name_cc_by_sa">CC Attribution-ShareAlike 3.0</string>
@@ -134,7 +134,7 @@
   <string name="license_name_cc_zero">CC Zero</string>
   <string name="tutorial_1_text">Wikimedia Commons späichert déi meescht Biller, déi op Wikipedia benotzt ginn.</string>
   <string name="tutorial_1_subtext">Är Biller hëllefe Leit op der ganzer Welt ze forméieren!</string>
-  <string name="tutorial_2_text">Lued wgl. Biller erop déi komplett vun Iech opgeholl oder gemaacht goufen:</string>
+  <string name="tutorial_2_text">Luet wgl. nëmme Biller erop déi komplett vun Iech opgeholl oder gemaach goufen:</string>
   <string name="tutorial_2_subtext_1">Natierlech Objeten (Blummen, Déieren, Bierger)</string>
   <string name="tutorial_2_subtext_2">Nëtzlech Objeten (Vëloen, Garen)</string>
   <string name="tutorial_2_subtext_3">Berühmt Leit (Äre Buergermeeschter, Olympioniken deenen Dir begéint sidd)</string>
@@ -164,6 +164,7 @@
   <string name="title_activity_nearby">Plazen nobäi</string>
   <string name="no_nearby">Keng Plazen nobäi fonnt</string>
   <string name="warning">Warnung</string>
+  <string name="upload">Eroplueden</string>
   <string name="yes">Jo</string>
   <string name="no">Neen</string>
   <string name="media_detail_title">Titel</string>
@@ -222,7 +223,7 @@
   <string name="upload_problem_image_duplicate">Bild ass schonn op Commons.</string>
   <string name="upload_problem_different_geolocation">Dëst Bild gouf op enger anerer Plaz gemaach.</string>
   <string name="upload_problem_do_you_continue">Wëllt Dir dëst Bild nach ëmmer eroplueden?</string>
-  <string name="internet_downloaded">Lued wgl. nëmme Biller erop déi Dir selwer opgeholl hutt. Lued keng Biller erop déi Dir aus dem Internet erofgelueden hutt.</string>
+  <string name="internet_downloaded">Luet wgl. nëmme Biller erop déi Dir selwer opgeholl hutt. Luet keng Biller erop déi Dir aus dem Internet erofgelueden hutt.</string>
   <string name="give_permission">Autorisatioun ginn</string>
   <string name="use_external_storage">Externe Späicher benotzen</string>
   <string name="use_external_storage_summary">Biller späicheren déi mat der in-app Kamera vun Ärem Apparat gemaach goufen</string>
@@ -271,6 +272,7 @@
   <string name="title_activity_search">Sichen</string>
   <string name="search_tab_title_media">Medien</string>
   <string name="search_tab_title_categories">Kategorien</string>
+  <string name="search_tab_title_depictions">Elementer</string>
   <string name="explore_tab_title_mobile">mobil eropgelueden</string>
   <string name="wikidata_edit_failure">Déi entspriechend Wikidata-Entitéit konnt net aktualiséiert ginn!</string>
   <string name="menu_set_wallpaper">Als Hannergrondbild festleeën</string>
@@ -319,9 +321,8 @@
   <string name="desc_language_Asia">Asien</string>
   <string name="desc_language_Pacific">Pazifik</string>
   <string name="no_categories_selected">Keng Kategorien erausgesicht</string>
-  <string name="yes_submit">Jo, schécken</string>
-  <string name="no_go_back">Neen, zréck goen</string>
   <string name="never_ask_again">Dëst ni méi froen</string>
+  <string name="achievements_fetch_failed_ultimate_achievement">Dir hutt esou vill Kontributioune gemaach datt eise Berechnungssystem iwwerfuerdert ass. Dëst ass déi bescht Leeschtung.</string>
   <string name="nominate_for_deletion_done">Fäerdeg</string>
   <string name="notsure">Net sécher</string>
   <string name="send_thank_send">Merci schécken</string>
@@ -336,7 +337,8 @@
   <string name="review_thanks_no_button_text">Nächst BILD</string>
   <string name="no_image">Keng Biller benotzt</string>
   <string name="no_image_uploaded">Keng Biller eropgelueden</string>
-  <string name="no_archived_notification">Dir hutt keng archivéier Notifikatiounen</string>
+  <string name="no_read_notification">Dir hutt keng net-geliest Notifikatiounen</string>
+  <string name="menu_option_read">Déi geliest weisen</string>
   <string name="error_occurred_in_picking_images">Feeler beim Eraussiche vun de Biller</string>
   <string name="image_chooser_title">Sicht Biller eraus fir eropzelueden</string>
   <string name="please_wait">Waart wgl. ...</string>
@@ -361,4 +363,14 @@
   <string name="wallpaper_set_unsuccessfully">Et ass Eppes schif gaangen. D\'Hannergrondbild konnt net agestallt ginn</string>
   <string name="setting_wallpaper_dialog_title">Als Hannergrondbild festleeën</string>
   <string name="setting_wallpaper_dialog_message">Hannergrondbild gëtt agestallt. Waart wgl...</string>
+  <string name="theme_default_name">System suivéieren</string>
+  <string name="theme_dark_name">Däischter</string>
+  <string name="theme_light_name">Hell</string>
+  <string name="load_more">Méi lueden</string>
+  <string name="nearby_no_results">Keng Plaze fonnt, probéiert Är Sich-Critèren z\'änneren.</string>
+  <string name="add_picture_to_wikipedia_article_title">Bild op Wikipedia derbäisetzen</string>
+  <string name="add_picture_to_wikipedia_instructions_title">Instruktiounen</string>
+  <string name="confirm">Confirméieren</string>
+  <string name="instructions_title">Instruktiounen</string>
+  <string name="wikipedia_instructions_step_7">7.Den Artikel publizéieren</string>
 </resources>

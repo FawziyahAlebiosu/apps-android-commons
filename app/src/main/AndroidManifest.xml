@@ -15,9 +15,7 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.USE_CREDENTIALS" />
     <uses-permission android:name="android.permission.MANAGE_ACCOUNTS" />
-    <uses-permission android:name="android.permission.MANAGE_DOCUMENTS" />
     <uses-permission android:name="com.google.android.apps.photos.permission.GOOGLE_PHOTOS" />
-    <uses-permission android:name="android.permission.READ_LOGS" />
     <uses-permission android:name="android.permission.SET_WALLPAPER"/>
 
 
@@ -40,6 +38,9 @@
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
             android:finishOnTaskLaunch="true" />
+
+        <activity
+            android:name=".media.ZoomableActivity" />
 
         <activity android:name=".auth.LoginActivity">
             <intent-filter>
@@ -82,7 +83,7 @@
             android:name=".contributions.MainActivity"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
-            android:configChanges="screenSize|keyboard" />
+            android:configChanges="screenSize|keyboard|orientation" />
         <activity
             android:name=".settings.SettingsActivity"
             android:label="@string/title_activity_settings" />
@@ -117,7 +118,12 @@
             android:parentActivityName=".contributions.MainActivity" />
 
         <activity
-            android:name=".explore.categories.ExploreActivity"
+            android:name=".explore.depictions.WikidataItemDetailsActivity"
+            android:label="@string/title_activity_featured_images"
+            android:parentActivityName=".contributions.MainActivity" />
+
+        <activity
+            android:name=".explore.ExploreActivity"
             android:label="@string/title_activity_explore"
             android:parentActivityName=".contributions.MainActivity"
             android:configChanges="orientation|screenSize|keyboard" />
@@ -154,18 +160,6 @@
                 android:name="android.accounts.AccountAuthenticator"
                 android:resource="@xml/authenticator" />
         </service>
-        <service
-            android:name=".contributions.ContributionsSyncService"
-            android:exported="true"
-            android:process=":sync">
-            <intent-filter>
-                <action android:name="android.content.SyncAdapter" />
-            </intent-filter>
-
-            <meta-data
-                android:name="android.content.SyncAdapter"
-                android:resource="@xml/contributions_sync_adapter" />
-        </service>
 
         <service
             android:name="org.acra.sender.SenderService"
@@ -181,19 +175,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-        <provider
-            android:name=".contributions.ContributionsContentProvider"
-            android:authorities="${applicationId}.contributions.contentprovider"
-            android:exported="false"
-            android:label="@string/provider_contributions"
-            android:syncable="true" />
 
         <provider
             android:name=".category.CategoryContentProvider"
             android:authorities="${applicationId}.categories.contentprovider"
             android:exported="false"
             android:label="@string/provider_categories"
-            android:syncable="false" />
+          android:syncable="false" />
 
         <provider
             android:name=".explore.recentsearches.RecentSearchesContentProvider"

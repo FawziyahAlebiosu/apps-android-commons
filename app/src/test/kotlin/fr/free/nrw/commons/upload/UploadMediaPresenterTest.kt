@@ -1,6 +1,9 @@
 package fr.free.nrw.commons.upload
 
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.whenever
 import fr.free.nrw.commons.filepicker.UploadableFile
+import fr.free.nrw.commons.kvstore.JsonKvStore
 import fr.free.nrw.commons.nearby.Place
 import fr.free.nrw.commons.repository.UploadRepository
 import fr.free.nrw.commons.upload.mediaDetails.UploadMediaDetailsContract
@@ -17,6 +20,7 @@ import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import java.util.*
 
 
 /**
@@ -24,31 +28,32 @@ import org.mockito.MockitoAnnotations
  */
 class UploadMediaPresenterTest {
     @Mock
-    internal var repository: UploadRepository? = null
-    @Mock
-    internal var view: UploadMediaDetailsContract.View? = null
-
-    private var uploadMediaPresenter: UploadMediaPresenter? = null
+    internal lateinit var repository: UploadRepository
 
     @Mock
-    private var uploadableFile: UploadableFile? = null
+    internal lateinit var view: UploadMediaDetailsContract.View
+
+    private lateinit var uploadMediaPresenter: UploadMediaPresenter
 
     @Mock
-    private var place: Place? = null
+    private lateinit var uploadableFile: UploadableFile
 
     @Mock
-    private var uploadItem: UploadModel.UploadItem? = null
+    private lateinit var place: Place
 
     @Mock
-    private var title: Title? = null
+    private lateinit var uploadItem: UploadItem
 
     @Mock
-    private var descriptions: List<Description>? = null
+    private lateinit var uploadMediaDetails: List<UploadMediaDetail>
 
-    private var testObservableUploadItem: Observable<UploadModel.UploadItem>? = null
-    private var testSingleImageResult: Single<Int>? = null
+    private lateinit var testObservableUploadItem: Observable<UploadItem>
+    private lateinit var testSingleImageResult: Single<Int>
 
-    private var testScheduler: TestScheduler? = null
+    private lateinit var testScheduler: TestScheduler
+
+    @Mock
+    private lateinit var jsonKvStore: JsonKvStore
 
     /**
      * initial setup unit test environment
@@ -60,8 +65,9 @@ class UploadMediaPresenterTest {
         testObservableUploadItem = Observable.just(uploadItem)
         testSingleImageResult = Single.just(1)
         testScheduler = TestScheduler()
-        uploadMediaPresenter = UploadMediaPresenter(repository, testScheduler, testScheduler)
-        uploadMediaPresenter?.onAttachView(view)
+        uploadMediaPresenter = UploadMediaPresenter(repository,
+            jsonKvStore,testScheduler, testScheduler)
+        uploadMediaPresenter.onAttachView(view)
     }
 
     /**
@@ -69,12 +75,21 @@ class UploadMediaPresenterTest {
      */
     @Test
     fun receiveImageTest() {
-        Mockito.`when`(repository?.preProcessImage(ArgumentMatchers.any(UploadableFile::class.java), ArgumentMatchers.any(Place::class.java), ArgumentMatchers.anyString(), ArgumentMatchers.any(UploadMediaPresenter::class.java))).thenReturn(testObservableUploadItem)
-        uploadMediaPresenter?.receiveImage(uploadableFile, ArgumentMatchers.anyString(), place)
-        verify(view)?.showProgress(true)
-        testScheduler?.triggerActions()
-        verify(view)?.onImageProcessed(ArgumentMatchers.any(UploadModel.UploadItem::class.java), ArgumentMatchers.any(Place::class.java))
-        verify(view)?.showProgress(false)
+        whenever(
+            repository.preProcessImage(
+                ArgumentMatchers.any(UploadableFile::class.java),
+                ArgumentMatchers.any(Place::class.java),
+                ArgumentMatchers.any(UploadMediaPresenter::class.java)
+            )
+        ).thenReturn(testObservableUploadItem)
+        uploadMediaPresenter.receiveImage(uploadableFile, place)
+        verify(view).showProgress(true)
+        testScheduler.triggerActions()
+        verify(view).onImageProcessed(
+            ArgumentMatchers.any(UploadItem::class.java),
+            ArgumentMatchers.any(Place::class.java)
+        )
+        verify(view).showProgress(false)
     }
 
     /**
@@ -82,12 +97,14 @@ class UploadMediaPresenterTest {
      */
     @Test
     fun verifyImageQualityTest() {
-        Mockito.`when`(repository?.getImageQuality(ArgumentMatchers.any(UploadModel.UploadItem::class.java), ArgumentMatchers.any(Boolean::class.java))).thenReturn(testSingleImageResult)
-        Mockito.`when`(uploadItem?.imageQuality).thenReturn(ArgumentMatchers.anyInt())
-        uploadMediaPresenter?.verifyImageQuality(uploadItem, true)
-        verify(view)?.showProgress(true)
-        testScheduler?.triggerActions()
-        verify(view)?.showProgress(false)
+        whenever(repository.uploads).thenReturn(listOf(uploadItem))
+        whenever(repository.getImageQuality(uploadItem))
+            .thenReturn(testSingleImageResult)
+        whenever(uploadItem.imageQuality).thenReturn(ArgumentMatchers.anyInt())
+        uploadMediaPresenter.verifyImageQuality(0)
+        verify(view).showProgress(true)
+        testScheduler.triggerActions()
+        verify(view).showProgress(false)
     }
 
     /**
@@ -96,74 +113,107 @@ class UploadMediaPresenterTest {
     @Test
     fun handleImageResult() {
         //Positive case test
-        uploadMediaPresenter?.handleImageResult(IMAGE_KEEP)
-        verify(view)?.onImageValidationSuccess()
+        uploadMediaPresenter.handleImageResult(IMAGE_KEEP, uploadItem)
+        verify(view).onImageValidationSuccess()
 
         //Duplicate file name
-        uploadMediaPresenter?.handleImageResult(FILE_NAME_EXISTS)
-        verify(view)?.showDuplicatePicturePopup()
+        uploadMediaPresenter.handleImageResult(FILE_NAME_EXISTS, uploadItem)
+        verify(view).showDuplicatePicturePopup(uploadItem)
 
-        //Empty Title test
-        uploadMediaPresenter?.handleImageResult(EMPTY_TITLE)
-        verify(view)?.showMessage(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())
+        //Empty Caption test
+        uploadMediaPresenter.handleImageResult(EMPTY_CAPTION, uploadItem)
+        verify(view).showMessage(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())
 
         //Bad Picture test
-        //Empty Title test
-        uploadMediaPresenter?.handleImageResult(-7)
-        verify(view)?.showBadImagePopup(ArgumentMatchers.anyInt())
+        //Empty Caption test
+        uploadMediaPresenter.handleImageResult(-7, uploadItem)
+        verify(view)?.showBadImagePopup(ArgumentMatchers.anyInt(), eq(uploadItem))
 
+    }
+
+    @Test
+    fun addSingleCaption() {
+        val uploadMediaDetail = UploadMediaDetail()
+        uploadMediaDetail.captionText = "added caption"
+        uploadMediaDetail.languageCode = "en"
+        val uploadMediaDetailList: ArrayList<UploadMediaDetail> = ArrayList()
+        uploadMediaDetailList.add(uploadMediaDetail)
+        uploadItem.setMediaDetails(uploadMediaDetailList)
+        Mockito.`when`(repository.getImageQuality(uploadItem)).then {
+            verify(view).showProgress(true)
+            testScheduler.triggerActions()
+            verify(view).showProgress(true)
+            verify(view).onImageValidationSuccess()
+        }
+    }
+
+    @Test
+    fun addMultipleCaptions() {
+        val uploadMediaDetail = UploadMediaDetail()
+        uploadMediaDetail.captionText = "added caption"
+        uploadMediaDetail.languageCode = "en"
+        uploadMediaDetail.captionText = "added caption"
+        uploadMediaDetail.languageCode = "eo"
+        uploadItem.setMediaDetails(Collections.singletonList(uploadMediaDetail))
+        Mockito.`when`(repository.getImageQuality(uploadItem)).then {
+            verify(view).showProgress(true)
+            testScheduler.triggerActions()
+            verify(view).showProgress(true)
+            verify(view).onImageValidationSuccess()
+        }
     }
 
     /**
      * Test fetch previous image title when there was one
      */
     @Test
-    fun fetchPreviousImageAndTitleTestPositive(){
-        Mockito.`when`(repository?.getPreviousUploadItem(ArgumentMatchers.anyInt())).thenReturn(uploadItem)
-        Mockito.`when`(uploadItem?.descriptions).thenReturn(descriptions)
-        Mockito.`when`(uploadItem?.title).thenReturn(title)
-        Mockito.`when`(title?.getTitleText()).thenReturn(ArgumentMatchers.anyString())
+    fun fetchPreviousImageAndTitleTestPositive() {
+        whenever(repository.uploads).thenReturn(listOf(uploadItem))
+        whenever(repository.getPreviousUploadItem(ArgumentMatchers.anyInt()))
+            .thenReturn(uploadItem)
+        whenever(uploadItem.uploadMediaDetails).thenReturn(listOf())
 
-        uploadMediaPresenter?.fetchPreviousTitleAndDescription(0)
-        verify(view)?.setTitleAndDescription(ArgumentMatchers.anyString(),ArgumentMatchers.any())
+        uploadMediaPresenter.fetchPreviousTitleAndDescription(0)
+        verify(view).updateMediaDetails(ArgumentMatchers.any())
     }
 
     /**
      * Test fetch previous image title when there was none
      */
     @Test
-    fun fetchPreviousImageAndTitleTestNegative(){
-        Mockito.`when`(repository?.getPreviousUploadItem(ArgumentMatchers.anyInt())).thenReturn(null)
-        uploadMediaPresenter?.fetchPreviousTitleAndDescription(0)
-        verify(view)?.showMessage(ArgumentMatchers.anyInt(),ArgumentMatchers.anyInt())
+    fun fetchPreviousImageAndTitleTestNegative() {
+        whenever(repository.getPreviousUploadItem(ArgumentMatchers.anyInt()))
+            .thenReturn(null)
+        uploadMediaPresenter.fetchPreviousTitleAndDescription(0)
+        verify(view).showMessage(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())
     }
 
     /**
      * Test bad image invalid location
      */
     @Test
-    fun handleBadImageBaseTestInvalidLocation(){
-        uploadMediaPresenter?.handleBadImage(8)
-        verify(repository)?.saveValue(ArgumentMatchers.anyString(),eq(false))
-        verify(view)?.showBadImagePopup(8)
+    fun handleBadImageBaseTestInvalidLocation() {
+        uploadMediaPresenter.handleBadImage(8, uploadItem)
+        verify(jsonKvStore).putBoolean(ArgumentMatchers.anyString(), eq(false))
+        verify(view).showBadImagePopup(8, uploadItem)
     }
 
     /**
      * Test bad image empty title
      */
     @Test
-    fun handleBadImageBaseTestEmptyTitle(){
-        uploadMediaPresenter?.handleBadImage(-3)
-        verify(view)?.showMessage(ArgumentMatchers.anyInt(),ArgumentMatchers.anyInt())
+    fun handleBadImageBaseTestEmptyTitle() {
+        uploadMediaPresenter.handleBadImage(-3, uploadItem)
+        verify(view).showMessage(ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt())
     }
 
     /**
      * Teste show file already exists
      */
     @Test
-    fun handleBadImageBaseTestFileNameExists(){
-        uploadMediaPresenter?.handleBadImage(-4)
-        verify(view)?.showDuplicatePicturePopup()
+    fun handleBadImageBaseTestFileNameExists() {
+        uploadMediaPresenter.handleBadImage(-4, uploadItem)
+        verify(view).showDuplicatePicturePopup(uploadItem)
     }
 
 
@@ -171,18 +221,10 @@ class UploadMediaPresenterTest {
      * Test show SimilarImageFragment
      */
     @Test
-    fun showSimilarImageFragmentTest(){
-        uploadMediaPresenter?.showSimilarImageFragment(ArgumentMatchers.anyString(),ArgumentMatchers.anyString())
-        verify(view)?.showSimilarImageFragment(ArgumentMatchers.anyString(),ArgumentMatchers.anyString())
-    }
-
-    /**
-     * Test set upload item
-     */
-    @Test
-    fun setUploadItemTest(){
-        uploadMediaPresenter?.setUploadItem(0,uploadItem)
-        verify(repository)?.updateUploadItem(0,uploadItem)
+    fun showSimilarImageFragmentTest() {
+        val similar: ImageCoordinates = mock()
+        uploadMediaPresenter.showSimilarImageFragment("original", "possible", similar)
+        verify(view).showSimilarImageFragment("original", "possible", similar)
     }
 
 }

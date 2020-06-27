@@ -1,22 +1,20 @@
 package fr.free.nrw.commons.delete
 
 import android.content.Context
+import com.nhaarman.mockitokotlin2.eq
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.verify
+import com.nhaarman.mockitokotlin2.whenever
 import fr.free.nrw.commons.Media
 import fr.free.nrw.commons.actions.PageEditClient
-import fr.free.nrw.commons.notification.NotificationHelper
-import fr.free.nrw.commons.utils.ViewUtilWrapper
 import io.reactivex.Observable
-import org.junit.Assert.*
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.ArgumentMatchers
-import org.mockito.InjectMocks
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
-import org.wikipedia.AppAdapter
-import javax.inject.Inject
-import javax.inject.Named
 
 /**
  * Tests for delete helper
@@ -24,23 +22,15 @@ import javax.inject.Named
 class DeleteHelperTest {
 
     @Mock
-    @field:[Inject Named("commons-page-edit")]
-    internal var pageEditClient: PageEditClient? = null
+    internal  lateinit var pageEditClient: PageEditClient
 
     @Mock
-    internal var context: Context? = null
+    internal  lateinit var context: Context
 
     @Mock
-    internal var notificationHelper: NotificationHelper? = null
+    internal  lateinit var media: Media
 
-    @Mock
-    internal var viewUtil: ViewUtilWrapper? = null
-
-    @Mock
-    internal var media: Media? = null
-
-    @InjectMocks
-    var deleteHelper: DeleteHelper? = null
+    lateinit var deleteHelper: DeleteHelper
 
     /**
      * Init mocks for test
@@ -48,6 +38,7 @@ class DeleteHelperTest {
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
+        deleteHelper = DeleteHelper(mock(), pageEditClient, mock(), "")
     }
 
     /**
@@ -55,19 +46,23 @@ class DeleteHelperTest {
      */
     @Test
     fun makeDeletion() {
-        `when`(pageEditClient?.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
 
-        `when`(media?.displayTitle).thenReturn("Test file")
-        `when`(media?.filename).thenReturn("Test file.jpg")
+        whenever(media.displayTitle).thenReturn("Test file")
 
-        val makeDeletion = deleteHelper?.makeDeletion(context, media, "Test reason")?.blockingGet()
+        val creatorName = "Creator"
+        whenever(media.creator).thenReturn("$creatorName (page does not exist)")
+        whenever(media.filename).thenReturn("Test file.jpg")
+
+        val makeDeletion = deleteHelper.makeDeletion(context, media, "Test reason")?.blockingGet()
         assertNotNull(makeDeletion)
         assertTrue(makeDeletion!!)
+        verify(pageEditClient).appendEdit(eq("User_Talk:$creatorName"), ArgumentMatchers.anyString(), ArgumentMatchers.anyString())
     }
 
     /**
@@ -75,43 +70,63 @@ class DeleteHelperTest {
      */
     @Test(expected = RuntimeException::class)
     fun makeDeletionForPrependEditFailure() {
-        `when`(pageEditClient?.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(false))
-        `when`(pageEditClient?.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(media?.displayTitle).thenReturn("Test file")
-        `when`(media?.filename).thenReturn("Test file.jpg")
+        whenever(media.displayTitle).thenReturn("Test file")
+        whenever(media.filename).thenReturn("Test file.jpg")
+        whenever(media.creator).thenReturn("Creator (page does not exist)")
 
-        deleteHelper?.makeDeletion(context, media, "Test reason")?.blockingGet()
+        deleteHelper.makeDeletion(context, media, "Test reason")?.blockingGet()
     }
 
     @Test(expected = RuntimeException::class)
     fun makeDeletionForEditFailure() {
-        `when`(pageEditClient?.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(false))
-        `when`(media?.displayTitle).thenReturn("Test file")
-        `when`(media?.filename).thenReturn("Test file.jpg")
+        whenever(media.displayTitle).thenReturn("Test file")
+        whenever(media.filename).thenReturn("Test file.jpg")
+        whenever(media.creator).thenReturn("Creator (page does not exist)")
 
-        deleteHelper?.makeDeletion(context, media, "Test reason")?.blockingGet()
+        deleteHelper.makeDeletion(context, media, "Test reason")?.blockingGet()
     }
 
     @Test(expected = RuntimeException::class)
     fun makeDeletionForAppendEditFailure() {
-        `when`(pageEditClient?.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(pageEditClient?.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(false))
-        `when`(pageEditClient?.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+        whenever(pageEditClient.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
                 .thenReturn(Observable.just(true))
-        `when`(media?.displayTitle).thenReturn("Test file")
-        `when`(media?.filename).thenReturn("Test file.jpg")
+        whenever(media.displayTitle).thenReturn("Test file")
+        whenever(media.filename).thenReturn("Test file.jpg")
+        whenever(media.creator).thenReturn("Creator (page does not exist)")
 
-        deleteHelper?.makeDeletion(context, media, "Test reason")?.blockingGet()
+        deleteHelper.makeDeletion(context, media, "Test reason")?.blockingGet()
+    }
+
+    @Test(expected = RuntimeException::class)
+    fun makeDeletionForEmptyCreatorName() {
+        whenever(pageEditClient.prependEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+            .thenReturn(Observable.just(true))
+        whenever(pageEditClient.appendEdit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+            .thenReturn(Observable.just(true))
+        whenever(pageEditClient.edit(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers.anyString()))
+            .thenReturn(Observable.just(true))
+
+        whenever(media.displayTitle).thenReturn("Test file")
+        media.filename ="Test file.jpg"
+
+        whenever(media.creator).thenReturn(null)
+
+        deleteHelper.makeDeletion(context, media, "Test reason")?.blockingGet()
     }
 }

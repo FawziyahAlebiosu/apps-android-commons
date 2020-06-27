@@ -2,33 +2,21 @@ package fr.free.nrw.commons.di;
 
 import android.app.Activity;
 import android.content.ContentProviderClient;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.view.inputmethod.InputMethodManager;
-
 import androidx.collection.LruCache;
-
-import com.github.varunpant.quadtree.QuadTree;
+import androidx.room.Room;
 import com.google.gson.Gson;
-
-import org.wikipedia.AppAdapter;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.inject.Named;
-import javax.inject.Singleton;
-
 import dagger.Module;
 import dagger.Provides;
 import fr.free.nrw.commons.BuildConfig;
 import fr.free.nrw.commons.R;
 import fr.free.nrw.commons.auth.AccountUtil;
 import fr.free.nrw.commons.auth.SessionManager;
-import fr.free.nrw.commons.caching.CacheController;
+import fr.free.nrw.commons.contributions.ContributionDao;
 import fr.free.nrw.commons.data.DBOpenHelper;
+import fr.free.nrw.commons.db.AppDatabase;
 import fr.free.nrw.commons.kvstore.JsonKvStore;
 import fr.free.nrw.commons.location.LocationServiceManager;
 import fr.free.nrw.commons.settings.Prefs;
@@ -39,10 +27,18 @@ import fr.free.nrw.commons.wikidata.WikidataEditListenerImpl;
 import io.reactivex.Scheduler;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import org.wikipedia.AppAdapter;
 
 /**
- * The Dependency Provider class for Commons Android. 
- * 
+ * The Dependency Provider class for Commons Android.
+ *
  * Provides all sorts of ContentProviderClients used by the app
  * along with the Liscences, AccountUtility, UploadController, Logged User,
  * Location manager etc
@@ -98,7 +94,7 @@ public class CommonsApplicationModule {
     }
 
     /**
-     * Provides an instance of CategoryContentProviderClient i.e. the categories 
+     * Provides an instance of CategoryContentProviderClient i.e. the categories
      * that are there in local storage
      */
     @Provides
@@ -106,6 +102,11 @@ public class CommonsApplicationModule {
     public ContentProviderClient provideCategoryContentProviderClient(Context context) {
         return context.getContentResolver().acquireContentProviderClient(BuildConfig.CATEGORY_AUTHORITY);
     }
+
+    /**
+     * This method is used to provide instance of DepictsContentProviderClient
+     * @param context context
+     * @return DepictsContentProviderClient*/
 
     /**
      * This method is used to provide instance of RecentSearchContentProviderClient
@@ -200,7 +201,7 @@ public class CommonsApplicationModule {
 
     /**
      * Provide JavaRx IO scheduler which manages IO operations
-     * across various Threads 
+     * across various Threads
      */
     @Named(IO_THREAD)
     @Provides
@@ -220,13 +221,21 @@ public class CommonsApplicationModule {
         return Objects.toString(AppAdapter.get().getUserName(), "");
     }
 
-    /**
-     * Provides quad tree
-     *
-     * @return
-     */
     @Provides
-    public QuadTree providesQuadTres() {
-        return new QuadTree<>(-180, -90, +180, +90);
+    @Singleton
+    public AppDatabase provideAppDataBase() {
+        return Room.databaseBuilder(applicationContext, AppDatabase.class, "commons_room.db")
+            .fallbackToDestructiveMigration()
+            .build();
+    }
+
+    @Provides
+    public ContributionDao providesContributionsDao(AppDatabase appDatabase) {
+        return appDatabase.contributionDao();
+    }
+
+    @Provides
+    public ContentResolver providesContentResolver(Context context){
+        return context.getContentResolver();
     }
 }

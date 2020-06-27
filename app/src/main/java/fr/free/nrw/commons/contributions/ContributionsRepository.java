@@ -1,8 +1,12 @@
 package fr.free.nrw.commons.contributions;
 
-import android.database.Cursor;
+import androidx.paging.DataSource.Factory;
+import io.reactivex.Completable;
+import java.util.List;
 
 import javax.inject.Inject;
+
+import io.reactivex.Single;
 
 /**
  * The repository class for contributions
@@ -19,25 +23,41 @@ public class ContributionsRepository {
     /**
      * Fetch default number of contributions to be show, based on user preferences
      */
-    public int get(String uploadsShowing) {
-        return localDataSource.get(uploadsShowing);
-    }
-
-
-    /**
-     * Get contribution object from cursor from LocalDataSource
-     * @param cursor
-     * @return
-     */
-    public Contribution getContributionFromCursor(Cursor cursor) {
-        return localDataSource.getContributionFromCursor(cursor);
+    public String getString(String key) {
+        return localDataSource.getString(key);
     }
 
     /**
      * Deletes a failed upload from DB
      * @param contribution
+     * @return
      */
-    public void deleteContributionFromDB(Contribution contribution) {
-        localDataSource.deleteContribution(contribution);
+    public Completable deleteContributionFromDB(Contribution contribution) {
+        return localDataSource.deleteContribution(contribution);
+    }
+
+    /**
+     * Get contribution object with title
+     * @param fileName
+     * @return
+     */
+    public Contribution getContributionWithFileName(String fileName) {
+        return localDataSource.getContributionWithFileName(fileName);
+    }
+
+    public Factory<Integer, Contribution> fetchContributions() {
+        return localDataSource.getContributions();
+    }
+
+    public Single<List<Long>> save(List<Contribution> contributions) {
+        return localDataSource.saveContributions(contributions);
+    }
+
+    public void set(String key, long value) {
+        localDataSource.set(key,value);
+    }
+
+    public Completable updateContribution(Contribution contribution) {
+        return localDataSource.updateContribution(contribution);
     }
 }
